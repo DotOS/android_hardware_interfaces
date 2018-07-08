@@ -96,13 +96,13 @@ Return<void> DescramblerImpl::descramble(
         descramble_cb _hidl_cb) {
     ALOGV("%s", __FUNCTION__);
 
-    // Get a local copy of the shared_ptr for the plugin. Note that before
-    // calling the HIDL callback, this shared_ptr must be manually reset,
-    // since the client side could proceed as soon as the callback is called
-    // without waiting for this method to go out of scope.
-    std::shared_ptr<DescramblerPlugin> holder = std::atomic_load(&mPluginHolder);
-    if (holder.get() == nullptr) {
-        _hidl_cb(toStatus(INVALID_OPERATION), 0, NULL);
+    // hidl_memory's size is stored in uint64_t, but mapMemory's mmap will map
+    // size in size_t. If size is over SIZE_MAX, mapMemory mapMemory could succeed
+    // but the mapped memory's actual size will be smaller than the reported size.
+    if (srcBuffer.heapBase.size() > SIZE_MAX) {
+        ALOGE("Invalid hidl_memory size: %llu", srcBuffer.heapBase.size());
+        android_errorWriteLog(0x534e4554, "79376389");
+        _hidl_cb(toStatus(BAD_VALUE), 0, NULL);
         return Void();
     }
 
@@ -167,6 +167,17 @@ Return<void> DescramblerImpl::descramble(
                 dstBuffer.secureMemory.getNativeHandle());
         dstPtr = static_cast<void *>(handle);
     }
+
+    // Get a local copy of the shared_ptr for the plugin. Note that before
+    // calling the HIDL callback, this shared_ptr must be manually reset,
+    // since the client side could proceed as soon as the callback is called
+    // without waiting for this method to go out of scope.
+    std::shared_ptr<DescramblerPlugin> holder = std::atomic_load(&mPluginHolder);
+    if (holder.get() == nullptr) {
+        _hidl_cb(toStatus(INVALID_OPERATION), 0, NULL);
+        return Void();
+    }
+
     // Casting hidl SubSample to DescramblerPlugin::SubSample, but need
     // to ensure structs are actually idential
 
