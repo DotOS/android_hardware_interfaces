@@ -180,7 +180,7 @@ Return<void> Thermal::getCoolingDevices(getCoolingDevices_cb _hidl_cb) {
 }
 
 IThermal* HIDL_FETCH_IThermal(const char* /* name */) {
-  thermal_module_t* module;
+  thermal_module_t* module = NULL;
   status_t err = hw_get_module(THERMAL_HARDWARE_MODULE_ID,
                                const_cast<hw_module_t const**>(
                                    reinterpret_cast<hw_module_t**>(&module)));
